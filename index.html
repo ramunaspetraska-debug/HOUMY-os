@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOUMY | Valdymo Sistema</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f7;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --apple-blue: #0071e3;
+            --apple-green: #34c759;
+            --apple-red: #ff3b30;
+            --card-bg: #ffffff;
+            --border-radius: 18px;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Šoninis meniu */
+        .sidebar {
+            width: 250px;
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(0,0,0,0.05);
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 30px;
+            padding-left: 15px;
+            color: var(--text-main);
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover { background-color: rgba(0,0,0,0.04); }
+        .nav-item.active {
+            background-color: var(--card-bg);
+            color: var(--apple-blue);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+
+        .milcija-toggle {
+            margin-top: auto;
+            background-color: #1d1d1f;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Pagrindinis langas */
+        .main-content {
+            flex: 1;
+            padding: 40px 50px;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-top: 0;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            margin-bottom: 30px;
+        }
+
+        /* Lentelės stilius */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ebebeb;
+            font-size: 14px;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        /* Logistikos (LDM) modulis */
+        .ldm-dashboard {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .ldm-number { font-size: 48px; font-weight: 700; }
+        .ldm-max { font-size: 18px; color: var(--text-muted); font-weight: 500; }
+
+        .progress-bar-container {
+            flex: 1;
+            height: 12px;
+            background-color: var(--bg-color);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--apple-blue);
+            width: 0%;
+            transition: width 0.4s ease, background-color 0.4s ease;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-naujas { background-color: #e5e5ea; color: #1d1d1f; }
+        .status-paruosta { background-color: #e8f5e9; color: var(--apple-green); }
+        
+        /* Paslėpti elementai Milcijos režime */
+        .milcija-mode .sensitive-data {
+            display: none !important;
+        }
+    </style>
+</head>
+<body id="app-body">
+
+    <nav class="sidebar">
+        <div class="logo">HOUMY OS.</div>
+        <div class="nav-item active" onclick="switchTab('logistika')">🚚 Krovinių Planavimas</div>
+        <div class="nav-item" onclick="switchTab('uzsakymai')">📦 Visi Užsakymai</div>
+        <div class="nav-item" onclick="switchTab('kainos')">💰 IWC Kainodara</div>
+        
+        <div class="milcija-toggle" id="milcija-btn" onclick="toggleMilcijaMode()">
+            Įjungti „Milcijos“ režimą
+        </div>
+    </nav>
+
+    <main class="main-content">
+        
+        <div id="tab-logistika">
+            <h1>Artėjantis reisas iš Lenkijos</h1>
+            
+            <div class="card">
+                <div class="ldm-dashboard">
+                    <div>
+                        <div class="ldm-number"><span id="current-ldm">0.0</span><span class="ldm-max"> / 13.6 LDM</span></div>
+                        <div style="color: var(--text-muted); font-size: 14px; margin-top: 5px;" id="ldm-status">Vilkiko užpildymas</div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="ldm-bar"></div>
+                    </div>
+                </div>
+
+                <h3>Pasikrovimo sąrašas (Laukia IWC sandėlyje)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Krauti?</th>
+                            <th>Užsakymo Nr.</th>
+                            <th>Klientas</th>
+                            <th>Prekė (Gamintojas)</th>
+                            <th>LDM</th>
+                            <th class="sensitive-data">Likutis (Eur)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logistika-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-uzsakymai" style="display: none;">
+            <h1>Klientų Užsakymai</h1>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sutarties Nr.</th>
+                            <th>Klientas</th>
+                            <th>Prekė</th>
+                            <th>Audinys</th>
+                            <th class="sensitive-data">Suma</th>
+                            <th>Statusas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="uzsakymai-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Mūsų apdoroti IWC ir kiti duomenys
+        const orders = [
+            { id: "IWC-01", klientas: "Jonas Jonaitis", preke: "CLOUD Armrest A (25/55) L", gamintojas: "IWC HOME", audinys: "I gr.", ldm: 0.33, suma: "150.00 €", likutis: "100.00 €", statusas: "Paruošta", statusClass: "status-paruosta" },
+            { id: "IWC-02", klientas: "Petras Petraitis", preke: "BOMA lova be dėžės 160/200", gamintojas: "IWC HOME", audinys: "III gr.", ldm: 0.2, suma: "1374.00 €", likutis: "774.00 €", statusas: "Paruošta", statusClass: "status-paruosta" },
+            { id: "26/05", klientas: "Džiugas Padegimas", preke: "Kampas ANDRO (Athena)", gamintojas: "Benix", audinys: "Zoya 08", ldm: 0.4, suma: "1273.00 €", likutis: "636.50 €", statusas: "Naujas", statusClass: "status-naujas" },
+            { id: "SF-1", klientas: "Vilandas Butkevičius", preke: "Kampas NOMO (Campile)", gamintojas: "Wersal", audinys: "Memphis 4", ldm: 0.4, suma: "1995.00 €", likutis: "0.00 €", statusas: "Paruošta", statusClass: "status-paruosta" }
+        ];
+
+        // 1. Sugeneruojame Logistikos lentelę (rodomi tik "Paruošta" statuso baldai)
+        const logistikaBody = document.getElementById('logistika-table-body');
+        orders.filter(o => o.statusas === "Paruošta").forEach((order, index) => {
+            logistikaBody.innerHTML += `
+                <tr>
+                    <td><input type="checkbox" style="width: 18px; height: 18px; cursor:pointer;" onchange="calculateLDM(this, ${order.ldm})"></td>
+                    <td style="font-weight: 600;">${order.id}</td>
+                    <td>${order.klientas}</td>
+                    <td>${order.preke} <br><span style="color:#86868b; font-size:12px;">${order.gamintojas}</span></td>
+                    <td style="font-weight: 600;">${order.ldm}</td>
+                    <td class="sensitive-data" style="color: #ff3b30;">${order.likutis}</td>
+                </tr>
+            `;
+        });
+
+        // 2. Sugeneruojame Užsakymų lentelę
+        const uzsakymaiBody = document.getElementById('uzsakymai-table-body');
+        orders.forEach(order => {
+            uzsakymaiBody.innerHTML += `
+                <tr>
+                    <td style="font-weight: 600;">${order.id}</td>
+                    <td>${order.klientas}</td>
+                    <td>${order.preke}</td>
+                    <td>${order.audinys}</td>
+                    <td class="sensitive-data">${order.suma}</td>
+                    <td><span class="status-badge ${order.statusClass}">${order.statusas}</span></td>
+                </tr>
+            `;
+        });
+
+        // LDM Skaičiuotuvas
+        let currentLdm = 0;
+        const maxLdm = 13.6;
+        function calculateLDM(checkbox, ldmValue) {
+            if(checkbox.checked) currentLdm += ldmValue;
+            else currentLdm -= ldmValue;
+            
+            if(currentLdm < 0.01) currentLdm = 0;
+
+            document.getElementById('current-ldm').innerText = currentLdm.toFixed(2);
+            let percentage = (currentLdm / maxLdm) * 100;
+            const bar = document.getElementById('ldm-bar');
+            
+            if (percentage > 100) {
+                bar.style.width = "100%";
+                bar.style.backgroundColor = "var(--apple-red)";
+                document.getElementById('current-ldm').style.color = "var(--apple-red)";
+            } else {
+                bar.style.width = percentage + "%";
+                bar.style.backgroundColor = "var(--apple-blue)";
+                document.getElementById('current-ldm').style.color = "var(--text-main)";
+            }
+        }
+
+        // Tabų perjungimas
+        function switchTab(tabId) {
+            document.getElementById('tab-logistika').style.display = 'none';
+            document.getElementById('tab-uzsakymai').style.display = 'none';
+            document.getElementById('tab-' + tabId).style.display = 'block';
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Milcijos (Saugus) režimas
+        let isMilcijaMode = false;
+        function toggleMilcijaMode() {
+            isMilcijaMode = !isMilcijaMode;
+            const body = document.getElementById('app-body');
+            const btn = document.getElementById('milcija-btn');
+            
+            if(isMilcijaMode) {
+                body.classList.add('milcija-mode');
+                btn.innerText = "Išjungti „Milcijos“ režimą";
+                btn.style.backgroundColor = "var(--apple-red)";
+            } else {
+                body.classList.remove('milcija-mode');
+                btn.innerText = "Įjungti „Milcijos“ režimą";
+                btn.style.backgroundColor = "#1d1d1f";
+            }
+        }
+    </script>
+</body>
+</html>
