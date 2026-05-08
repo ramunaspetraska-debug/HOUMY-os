@@ -26,7 +26,6 @@
             overflow: hidden;
         }
 
-        /* Šoninis meniu */
         .sidebar {
             width: 250px;
             background-color: rgba(255, 255, 255, 0.8);
@@ -74,9 +73,20 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .reset-token {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--text-muted);
+            padding: 8px 15px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
         }
 
-        /* Pagrindinis langas */
         .main-content {
             flex: 1;
             padding: 40px 50px;
@@ -99,7 +109,6 @@
             margin-bottom: 30px;
         }
 
-        /* Lentelės stilius */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -119,7 +128,6 @@
             font-size: 13px;
         }
 
-        /* Logistikos (LDM) modulis */
         .ldm-dashboard {
             display: flex;
             align-items: center;
@@ -151,12 +159,19 @@
             font-size: 12px;
             font-weight: 600;
         }
+        
         .status-naujas { background-color: #e5e5ea; color: #1d1d1f; }
         .status-paruosta { background-color: #e8f5e9; color: var(--apple-green); }
-        
-        /* Paslėpti elementai Milcijos režime */
+        .status-default { background-color: #e5e5ea; color: #1d1d1f; }
+
         .milcija-mode .sensitive-data {
             display: none !important;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
         }
     </style>
 </head>
@@ -166,10 +181,12 @@
         <div class="logo">HOUMY OS.</div>
         <div class="nav-item active" onclick="switchTab('logistika')">🚚 Krovinių Planavimas</div>
         <div class="nav-item" onclick="switchTab('uzsakymai')">📦 Visi Užsakymai</div>
-        <div class="nav-item" onclick="switchTab('kainos')">💰 IWC Kainodara</div>
         
         <div class="milcija-toggle" id="milcija-btn" onclick="toggleMilcijaMode()">
             Įjungti „Milcijos“ režimą
+        </div>
+        <div class="reset-token" onclick="resetToken()">
+            Pakeisti sistemos raktą
         </div>
     </nav>
 
@@ -181,7 +198,7 @@
             <div class="card">
                 <div class="ldm-dashboard">
                     <div>
-                        <div class="ldm-number"><span id="current-ldm">0.0</span><span class="ldm-max"> / 13.6 LDM</span></div>
+                        <div class="ldm-number"><span id="current-ldm">0.00</span><span class="ldm-max"> / 13.6 LDM</span></div>
                         <div style="color: var(--text-muted); font-size: 14px; margin-top: 5px;" id="ldm-status">Vilkiko užpildymas</div>
                     </div>
                     <div class="progress-bar-container">
@@ -189,20 +206,20 @@
                     </div>
                 </div>
 
-                <h3>Pasikrovimo sąrašas (Laukia IWC sandėlyje)</h3>
-                <table>
+                <h3>Pasikrovimo sąrašas</h3>
+                <div id="logistika-loading" class="loading">Kraunami duomenys iš Airtable...</div>
+                <table id="logistika-table" style="display: none;">
                     <thead>
                         <tr>
                             <th>Krauti?</th>
                             <th>Užsakymo Nr.</th>
                             <th>Klientas</th>
-                            <th>Prekė (Gamintojas)</th>
+                            <th>Prekė</th>
                             <th>LDM</th>
                             <th class="sensitive-data">Likutis (Eur)</th>
                         </tr>
                     </thead>
-                    <tbody id="logistika-table-body">
-                        </tbody>
+                    <tbody id="logistika-table-body"></tbody>
                 </table>
             </div>
         </div>
@@ -210,7 +227,8 @@
         <div id="tab-uzsakymai" style="display: none;">
             <h1>Klientų Užsakymai</h1>
             <div class="card">
-                <table>
+                <div id="uzsakymai-loading" class="loading">Kraunami duomenys iš Airtable...</div>
+                <table id="uzsakymai-table" style="display: none;">
                     <thead>
                         <tr>
                             <th>Sutarties Nr.</th>
@@ -221,8 +239,7 @@
                             <th>Statusas</th>
                         </tr>
                     </thead>
-                    <tbody id="uzsakymai-table-body">
-                        </tbody>
+                    <tbody id="uzsakymai-table-body"></tbody>
                 </table>
             </div>
         </div>
@@ -230,57 +247,115 @@
     </main>
 
     <script>
-        // Mūsų apdoroti IWC ir kiti duomenys
-        const orders = [
-            { id: "IWC-01", klientas: "Jonas Jonaitis", preke: "CLOUD Armrest A (25/55) L", gamintojas: "IWC HOME", audinys: "I gr.", ldm: 0.33, suma: "150.00 €", likutis: "100.00 €", statusas: "Paruošta", statusClass: "status-paruosta" },
-            { id: "IWC-02", klientas: "Petras Petraitis", preke: "BOMA lova be dėžės 160/200", gamintojas: "IWC HOME", audinys: "III gr.", ldm: 0.2, suma: "1374.00 €", likutis: "774.00 €", statusas: "Paruošta", statusClass: "status-paruosta" },
-            { id: "26/05", klientas: "Džiugas Padegimas", preke: "Kampas ANDRO (Athena)", gamintojas: "Benix", audinys: "Zoya 08", ldm: 0.4, suma: "1273.00 €", likutis: "636.50 €", statusas: "Naujas", statusClass: "status-naujas" },
-            { id: "SF-1", klientas: "Vilandas Butkevičius", preke: "Kampas NOMO (Campile)", gamintojas: "Wersal", audinys: "Memphis 4", ldm: 0.4, suma: "1995.00 €", likutis: "0.00 €", statusas: "Paruošta", statusClass: "status-paruosta" }
-        ];
+        const AIRTABLE_BASE_ID = 'app4nQn0Oa3zW7r4A'; 
+        const TABLE_NAME = '3_UZSAKYMAI';
 
-        // 1. Sugeneruojame Logistikos lentelę (rodomi tik "Paruošta" statuso baldai)
-        const logistikaBody = document.getElementById('logistika-table-body');
-        orders.filter(o => o.statusas === "Paruošta").forEach((order, index) => {
-            logistikaBody.innerHTML += `
-                <tr>
-                    <td><input type="checkbox" style="width: 18px; height: 18px; cursor:pointer;" onchange="calculateLDM(this, ${order.ldm})"></td>
-                    <td style="font-weight: 600;">${order.id}</td>
-                    <td>${order.klientas}</td>
-                    <td>${order.preke} <br><span style="color:#86868b; font-size:12px;">${order.gamintojas}</span></td>
-                    <td style="font-weight: 600;">${order.ldm}</td>
-                    <td class="sensitive-data" style="color: #ff3b30;">${order.likutis}</td>
-                </tr>
-            `;
-        });
-
-        // 2. Sugeneruojame Užsakymų lentelę
-        const uzsakymaiBody = document.getElementById('uzsakymai-table-body');
-        orders.forEach(order => {
-            uzsakymaiBody.innerHTML += `
-                <tr>
-                    <td style="font-weight: 600;">${order.id}</td>
-                    <td>${order.klientas}</td>
-                    <td>${order.preke}</td>
-                    <td>${order.audinys}</td>
-                    <td class="sensitive-data">${order.suma}</td>
-                    <td><span class="status-badge ${order.statusClass}">${order.statusas}</span></td>
-                </tr>
-            `;
-        });
-
-        // LDM Skaičiuotuvas
         let currentLdm = 0;
         const maxLdm = 13.6;
+
+        // SAUGUS RAKTO GAVIMAS IŠ NARŠYKLĖS ATMINTIES
+        function getAirtableToken() {
+            let token = localStorage.getItem('houmy_airtable_token');
+            if (!token) {
+                token = prompt('Įveskite HOUMY OS apsaugos raktą (Airtable Token):');
+                if (token) {
+                    localStorage.setItem('houmy_airtable_token', token);
+                } else {
+                    alert('Be rakto sistema negali veikti. Atnaujinkite puslapį.');
+                }
+            }
+            return token;
+        }
+
+        function resetToken() {
+            localStorage.removeItem('houmy_airtable_token');
+            location.reload();
+        }
+
+        async function fetchAirtableData() {
+            const token = getAirtableToken();
+            if (!token) return;
+
+            try {
+                const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${TABLE_NAME}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Nepavyko prisijungti. Gali būti, kad raktas neteisingas arba pasibaigęs jo galiojimas.');
+                }
+
+                const data = await response.json();
+                renderData(data.records);
+
+            } catch (error) {
+                document.getElementById('logistika-loading').innerText = "Klaida: " + error.message;
+                document.getElementById('uzsakymai-loading').innerText = "Klaida: " + error.message;
+                
+                // Jei klaida, leidžiame įvesti iš naujo
+                if(error.message.includes('neteisingas')) {
+                    localStorage.removeItem('houmy_airtable_token');
+                }
+            }
+        }
+
+        function renderData(records) {
+            const logistikaBody = document.getElementById('logistika-table-body');
+            const uzsakymaiBody = document.getElementById('uzsakymai-table-body');
+            
+            document.getElementById('logistika-loading').style.display = 'none';
+            document.getElementById('logistika-table').style.display = 'table';
+            document.getElementById('uzsakymai-loading').style.display = 'none';
+            document.getElementById('uzsakymai-table').style.display = 'table';
+
+            records.forEach(record => {
+                const fields = record.fields;
+                const id = fields['Užsakymo Nr.'] || '-';
+                const klientas = fields['Klientas'] || '-';
+                const preke = fields['Prekė'] || '-';
+                const audinys = fields['Audinio grupė'] || '-';
+                const suma = fields['Suma'] ? fields['Suma'] + ' €' : '-';
+                const likutis = fields['Likutis'] ? fields['Likutis'] + ' €' : '0 €';
+                const statusas = fields['Statusas'] || 'Naujas';
+                const ldm = 0.33; // Laikinas LDM
+
+                let statusClass = 'status-default';
+                if (statusas === 'Naujas') statusClass = 'status-naujas';
+                if (statusas.includes('Paruošta') || statusas.includes('Pagaminta')) statusClass = 'status-paruosta';
+
+                uzsakymaiBody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 600;">${id}</td>
+                        <td>${klientas}</td>
+                        <td>${preke}</td>
+                        <td>${audinys}</td>
+                        <td class="sensitive-data">${suma}</td>
+                        <td><span class="status-badge ${statusClass}">${statusas}</span></td>
+                    </tr>
+                `;
+
+                if (statusas.includes('Paruošta') || statusas.includes('Pagaminta')) {
+                    logistikaBody.innerHTML += `
+                        <tr>
+                            <td><input type="checkbox" style="width: 18px; height: 18px; cursor:pointer;" onchange="calculateLDM(this, ${ldm})"></td>
+                            <td style="font-weight: 600;">${id}</td>
+                            <td>${klientas}</td>
+                            <td>${preke}</td>
+                            <td style="font-weight: 600;">${ldm}</td>
+                            <td class="sensitive-data" style="color: #ff3b30;">${likutis}</td>
+                        </tr>
+                    `;
+                }
+            });
+        }
+
         function calculateLDM(checkbox, ldmValue) {
             if(checkbox.checked) currentLdm += ldmValue;
             else currentLdm -= ldmValue;
-            
             if(currentLdm < 0.01) currentLdm = 0;
-
             document.getElementById('current-ldm').innerText = currentLdm.toFixed(2);
             let percentage = (currentLdm / maxLdm) * 100;
             const bar = document.getElementById('ldm-bar');
-            
             if (percentage > 100) {
                 bar.style.width = "100%";
                 bar.style.backgroundColor = "var(--apple-red)";
@@ -292,33 +367,28 @@
             }
         }
 
-        // Tabų perjungimas
         function switchTab(tabId) {
             document.getElementById('tab-logistika').style.display = 'none';
             document.getElementById('tab-uzsakymai').style.display = 'none';
             document.getElementById('tab-' + tabId).style.display = 'block';
-            
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            event.currentTarget.classList.add('active');
         }
 
-        // Milcijos (Saugus) režimas
-        let isMilcijaMode = false;
         function toggleMilcijaMode() {
-            isMilcijaMode = !isMilcijaMode;
             const body = document.getElementById('app-body');
             const btn = document.getElementById('milcija-btn');
-            
-            if(isMilcijaMode) {
-                body.classList.add('milcija-mode');
+            body.classList.toggle('milcija-mode');
+            if(body.classList.contains('milcija-mode')) {
                 btn.innerText = "Išjungti „Milcijos“ režimą";
                 btn.style.backgroundColor = "var(--apple-red)";
             } else {
-                body.classList.remove('milcija-mode');
                 btn.innerText = "Įjungti „Milcijos“ režimą";
                 btn.style.backgroundColor = "#1d1d1f";
             }
         }
+
+        window.onload = fetchAirtableData;
     </script>
 </body>
 </html>
